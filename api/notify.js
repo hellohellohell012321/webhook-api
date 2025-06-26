@@ -4,7 +4,7 @@ import { Redis } from "@upstash/redis";
 // Create a rate limiter that allows 1 request per 60 seconds
 const ratelimit = new Ratelimit({
   redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(1, "60 s"),
+  limiter: Ratelimit.slidingWindow(1, "1 s"),
   analytics: true, // Optional: enable analytics
 });
 
