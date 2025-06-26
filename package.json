@@ -13,6 +13,6 @@
   "license": "MIT",
   "dependencies": {
     "@upstash/ratelimit": "^0.4.4",
-    "@upstash/redis": "^1.25.1",
+    "@upstash/redis": "^1.25.1"
   }
 }
