@@ -24,6 +24,16 @@ function getClientIP(req) {
 }
 
 export default async function handler(req, res) {
+  // Add CORS headers for Roblox requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -33,8 +43,11 @@ export default async function handler(req, res) {
   const identifier = `webhook:${clientIP}`;
   
   try {
+    console.log('Checking rate limit for identifier:', identifier);
+    
     // Check rate limit
     const { success, limit, reset, remaining } = await ratelimit.limit(identifier);
+    console.log('Rate limit check result:', { success, limit, reset, remaining });
     
     if (!success) {
       return res.status(429).json({ 
@@ -79,7 +92,8 @@ export default async function handler(req, res) {
     }
     
     // Log the attempt (helpful for debugging)
-    console.log(`Sending webhook from IP: ${clientIP}`);
+    console.log(`Receiving webhook request from IP: ${clientIP}`);
+    console.log('Request body:', JSON.stringify(body, null, 2));
     
     // Forward to Discord with timeout
     const controller = new AbortController();
@@ -134,14 +148,27 @@ export default async function handler(req, res) {
     }
     
   } catch (error) {
-    console.error('Webhook handler error:', error);
+    console.error('Webhook handler error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Check if it's a specific error type
+    if (error.message.includes('Redis')) {
+      console.error('Redis connection error - check UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN');
+      return res.status(500).json({ 
+        message: 'Database connection error',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
     
     // Don't expose internal error details in production
     const isDevelopment = process.env.NODE_ENV === 'development';
     
     return res.status(500).json({ 
       message: 'Internal server error',
-      ...(isDevelopment && { details: error.message })
+      ...(isDevelopment && { details: error.message, stack: error.stack })
     });
   }
 }
