@@ -1,27 +1,32 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ message: 'kys' });
   }
-
-  const { content } = req.body;
 
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
-  if (!content || !webhookUrl) {
-    return res.status(400).json({ message: 'Missing content or webhook URL' });
+  if (!webhookUrl) {
+    return res.status(500).json({ message: 'Webhook URL not configured' });
   }
 
   try {
-    const discordRes = await fetch(webhookUrl, {
+    // Receive full body including content, embeds, etc.
+    const body = req.body;
+
+    // Forward exactly what was received to Discord
+    const discordResponse = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify(body)
     });
 
-    if (!discordRes.ok) throw new Error('Failed to send Discord message');
+    if (!discordResponse.ok) {
+      const text = await discordResponse.text();
+      return res.status(500).json({ message: 'Discord webhook failed', details: text });
+    }
 
-    res.status(200).json({ message: 'Message sent to Discord' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(200).json({ message: 'Message sent to Discord' });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 }
